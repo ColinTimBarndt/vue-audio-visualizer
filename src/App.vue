@@ -18,7 +18,7 @@
 </template>
 
 <script lang="ts">
-import { provide, readonly, ref } from "vue";
+import { provide, reactive, readonly, ref } from "vue";
 import { Options, Vue } from "vue-class-component";
 import TabVisuals from "./components/TabVisuals.vue";
 import TabSettings from "./components/TabSettings.vue";
@@ -32,6 +32,11 @@ import EventBus from "./event-bus";
     TabSettings,
   },
   data() {
+    return {
+      tab: "visuals",
+    };
+  },
+  provide() {
     const actx = new AudioContext({ latencyHint: "interactive" });
     const inputNode = actx.createAnalyser();
     inputNode.fftSize = 2048;
@@ -41,33 +46,30 @@ import EventBus from "./event-bus";
     const frequencyBuffer = new Uint8Array(inputNode.frequencyBinCount);
     const timeDomainBuffer = new Uint8Array(inputNode.frequencyBinCount * 2);
 
-    provide("audioContext", actx);
-    provide("audioInput", readonly(inputNode));
-    provide(
-      "audioData",
-      readonly({
-        frequency: ref(frequencyBuffer),
-        timeDomain: ref(timeDomainBuffer),
-      })
-    );
-    provide("setAudioSourceNode", (v: AudioNode | null) => {
-      if (source) {
-        source.disconnect();
-        source = null;
-      }
-      if (v) {
-        v.connect(inputNode);
-      }
-    });
-
     EventBus.on<number>("animation-frame", (_time) => {
       inputNode.getByteFrequencyData(frequencyBuffer);
       inputNode.getByteTimeDomainData(timeDomainBuffer);
     });
 
     return {
-      tab: "visuals",
+      audioContext: actx,
       audioInput: readonly(inputNode),
+      audioData: readonly({
+        frequency: ref(frequencyBuffer),
+        timeDomain: ref(timeDomainBuffer),
+      }),
+      setAudioSourceNode: (v: AudioNode | null) => {
+        if (source) {
+          source.disconnect();
+          source = null;
+        }
+        if (v) {
+          v.connect(inputNode);
+        }
+      },
+      visualsOptions: reactive({
+        labels: ref(true),
+      }),
     };
   },
 })

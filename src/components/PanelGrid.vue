@@ -34,6 +34,7 @@ import PanelGridPanel from "./PanelGridPanel.vue";
 import PanelVisualizer from "./PanelVisualizer.vue";
 import PanelSelectVisualizer from "./PanelSelectVisualizer.vue";
 import PanelSettingsAudio from "./PanelSettingsAudio.vue";
+import PanelSettingsVisual from "./PanelSettingsVisual.vue";
 
 @Options({
   components: {
@@ -41,6 +42,7 @@ import PanelSettingsAudio from "./PanelSettingsAudio.vue";
     PanelVisualizer,
     PanelSelectVisualizer,
     PanelSettingsAudio,
+    PanelSettingsVisual,
   },
   props: {
     columns: {

@@ -10,6 +10,14 @@ import("./assets/colormaps/magma.json").then(({ default: cmap }) => {
 	magmaColormap = new Uint8ClampedArray(cmap.map(Math.round));
 });
 
+function hertzToIndex(hz: number, bufferLength: number, sampleRate: number) {
+	return (hz * 2 * bufferLength) / sampleRate;
+}
+
+function indexToHertz(idx: number, bufferLength: number, sampleRate: number) {
+	return (idx * sampleRate) / (2 * bufferLength);
+}
+
 export class VisualizerSelectPanel implements IPanel {
 	readonly title = "New Visualizer";
 	readonly component = PanelSelectVisualizer.name;
@@ -41,12 +49,21 @@ export abstract class Visualizer implements IPanel {
 	static readonly visualizerName: string = "Visualizer";
 
 	protected matrix: DOMMatrix = new DOMMatrix([1, 0, 0, 1, 0, 0]);
+	public readonly canvasOptions: {
+		[key in "canvas" | "labels"]: CanvasRenderingContext2DSettings;
+	} = {
+		canvas: {},
+		labels: {},
+	};
 
-	protected colors = {
+	protected style = {
 		background: "white",
 		foreground: "black",
 		middleground: "lightgray",
 		color: "darkgreen",
+		fontText: "sans-serif",
+		fontButtons: "sans-serif",
+		fontHeaders: "sans-serif",
 	};
 
 	constructor(
@@ -57,9 +74,25 @@ export abstract class Visualizer implements IPanel {
 			timeDomain: Uint8Array;
 		}>,
 		protected readonly audioContext: AudioContext
-	) {}
+	) {
+		this.setup();
+	}
+
+	/**
+	 * Called at the end of the Visualizer constructor.
+	 * This is for convenience.
+	 */
+	setup(): void {}
 
 	abstract render(ctx: CanvasRenderingContext2D): void;
+
+	/**
+	 * Draws labels on top of the rendered canvas.
+	 * This method is only called if labeling is
+	 * turned on in the settings.
+	 * @param ctx
+	 */
+	drawLabels(ctx: CanvasRenderingContext2D): void {}
 
 	init(
 		ctx: CanvasRenderingContext2D,
@@ -69,9 +102,9 @@ export abstract class Visualizer implements IPanel {
 		// Loads the theme colors from CSS
 		if ("getComputedStyle" in window) {
 			const computed = window.getComputedStyle(ctx.canvas);
-			for (const prop of Object.keys(this.colors)) {
+			for (const prop of Object.keys(this.style)) {
 				const v = computed.getPropertyValue("--canvas-" + prop);
-				if (v) (this.colors as { [idx: string]: string })[prop] = v;
+				if (v) (this.style as { [idx: string]: string })[prop] = v;
 			}
 		}
 		// Set canvas size
@@ -82,6 +115,16 @@ export abstract class Visualizer implements IPanel {
 		this.audioContext.resume();
 	}
 
+	initLabels(
+		ctx: CanvasRenderingContext2D,
+		width: number = 720,
+		height?: number
+	): void {
+		// Set canvas size
+		ctx.canvas.width = width;
+		ctx.canvas.height = height ?? Math.round((width * 9) / 16);
+	}
+
 	clearCanvas(ctx: CanvasRenderingContext2D) {
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 	}
@@ -90,8 +133,42 @@ export abstract class Visualizer implements IPanel {
 		return {
 			beginPath: ctx.beginPath.bind(ctx),
 			stroke: ctx.stroke.bind(ctx),
-			lineTo: (x: number, y: number) => t(this.matrix, x, y, ctx.lineTo),
-			moveTo: (x: number, y: number) => t(this.matrix, x, y, ctx.moveTo),
+			lineTo: (x: number, y: number) =>
+				t(
+					this.matrix,
+					x,
+					y,
+					CanvasRenderingContext2D.prototype.lineTo.bind(ctx)
+				),
+			moveTo: (x: number, y: number) =>
+				t(
+					this.matrix,
+					x,
+					y,
+					CanvasRenderingContext2D.prototype.moveTo.bind(ctx)
+				),
+			fillText: (
+				text: string,
+				x: number,
+				y: number,
+				maxWidth?: number,
+				ox: number = 0,
+				oy: number = 0
+			) =>
+				t(this.matrix, x, y, (x, y) =>
+					ctx.fillText(text, x + ox, y + oy, maxWidth)
+				),
+			strokeText: (
+				text: string,
+				x: number,
+				y: number,
+				maxWidth?: number,
+				ox: number = 0,
+				oy: number = 0
+			) =>
+				t(this.matrix, x, y, (x, y) =>
+					ctx.strokeText(text, x + ox, y + oy, maxWidth)
+				),
 		};
 
 		function t(
@@ -101,7 +178,7 @@ export abstract class Visualizer implements IPanel {
 			f: (x: number, y: number) => void
 		) {
 			const { x: x1, y: y1 } = matrix.transformPoint({ x, y });
-			f.bind(ctx)(x1, y1);
+			f(x1, y1);
 		}
 	}
 }
@@ -112,10 +189,10 @@ export class VisualizerPlaceholder extends Visualizer {
 	init(ctx: CanvasRenderingContext2D) {
 		super.init(ctx);
 
-		ctx.font = "80px Bangers";
+		ctx.font = "80px " + this.style.fontHeaders;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
-		ctx.fillStyle = this.colors.color;
+		ctx.fillStyle = this.style.color;
 	}
 	render(ctx: CanvasRenderingContext2D) {
 		this.clearCanvas(ctx);
@@ -136,7 +213,6 @@ export class VisualizerFrequencyGraph extends Visualizer {
 	init(ctx: CanvasRenderingContext2D) {
 		super.init(ctx);
 
-		ctx.strokeStyle = this.colors.color;
 		const widthMod = ctx.canvas.width / this.visLen;
 		const heightMod = ctx.canvas.height / 256;
 		this.matrix = new DOMMatrix([
@@ -147,8 +223,9 @@ export class VisualizerFrequencyGraph extends Visualizer {
 			0,
 			ctx.canvas.height,
 		]);
-		ctx.lineWidth = 2;
 		ctx.lineJoin = "round";
+		ctx.lineWidth = 2;
+		ctx.strokeStyle = this.style.color;
 	}
 
 	render(ctx: CanvasRenderingContext2D) {
@@ -163,6 +240,55 @@ export class VisualizerFrequencyGraph extends Visualizer {
 		}
 		pctx.stroke();
 	}
+
+	initLabels(ctx: CanvasRenderingContext2D) {
+		super.initLabels(ctx);
+
+		ctx.fillStyle = this.style.foreground;
+		ctx.font = "20px " + this.style.fontText;
+		ctx.textBaseline = "hanging";
+		ctx.lineWidth = 1;
+		ctx.globalAlpha = 0.2;
+		ctx.strokeStyle = this.style.foreground;
+
+		// Draw
+		const { visLen } = this;
+		const { sampleRate } = this.audioContext;
+
+		const pctx = this.contextProxy(ctx);
+		const maxFq = indexToHertz(visLen, visLen, sampleRate);
+		ctx.textAlign = "start";
+
+		pctx.beginPath();
+		for (var i = 2000; i < maxFq; i += 2000) labelFrequency(i);
+
+		pctx.moveTo(127, 0);
+		pctx.lineTo(127, visLen);
+		ctx.textAlign = "end";
+		pctx.fillText(
+			`${(this.audioInput.maxDecibels - this.audioInput.minDecibels) / 2}db`,
+			127,
+			visLen,
+			undefined,
+			-2,
+			4
+		);
+		pctx.stroke();
+
+		function labelFrequency(hz: number, l: boolean = true) {
+			const x = hertzToIndex(hz, visLen, sampleRate);
+			pctx.moveTo(255, x);
+			pctx.lineTo(0, x);
+			if (l) {
+				const text = hz >= 1000 ? `${hz / 1000}k` : hz + "";
+				pctx.fillText(text, 255, x, undefined, 2, 4);
+			}
+		}
+	}
+
+	drawLabels(_ctx: CanvasRenderingContext2D) {
+		// Only drawn once on initialisation
+	}
 }
 
 export class VisualizerAudioGraph extends Visualizer {
@@ -171,7 +297,7 @@ export class VisualizerAudioGraph extends Visualizer {
 	init(ctx: CanvasRenderingContext2D) {
 		super.init(ctx);
 
-		ctx.strokeStyle = this.colors.color;
+		ctx.strokeStyle = this.style.color;
 		ctx.lineWidth = 2;
 		ctx.lineJoin = "round";
 
@@ -201,9 +327,11 @@ export class VisualizerAudioGraph extends Visualizer {
 		]);
 
 		// Calculate Hertz frequency as described in the documentation
-		const highestFreqHz =
-			(highestFreqIndex * this.audioContext.sampleRate) /
-			(2 * this.audioData.frequency.length);
+		const highestFreqHz = indexToHertz(
+			highestFreqIndex,
+			this.audioData.frequency.length,
+			this.audioContext.sampleRate
+		);
 
 		// Inverval length
 		const iv = highestFreqAmp > 50 ? 1 / highestFreqHz : 0;
@@ -260,9 +388,11 @@ export class Visualizer80sBarGraph extends Visualizer {
 		ctx.lineCap = "round";
 
 		// Convert Hz to the frequency buffer index (with decimal component)
-		this.maxFreqIdx =
-			(this.maxHz * 2 * this.audioData.frequency.length) /
-			this.audioContext.sampleRate;
+		this.maxFreqIdx = hertzToIndex(
+			this.maxHz,
+			this.audioData.frequency.length,
+			this.audioContext.sampleRate
+		);
 		// Logarithmic scale
 		this.quantisationIndex = new Array<number>(this.barCount);
 		for (let i = this.barCount - 1, j = this.maxFreqIdx; i >= 0; i--) {
@@ -307,7 +437,7 @@ export class Visualizer80sBarGraph extends Visualizer {
 			volumes[i] = q;
 			if (q > this.maximumVolumes[i]) this.maximumVolumes[i] = q;
 		}
-		ctx.strokeStyle = this.colors.color;
+		ctx.strokeStyle = this.style.color;
 		ctx.stroke();
 
 		const dt = this.audioContext.currentTime - this.lastTime;
@@ -319,7 +449,7 @@ export class Visualizer80sBarGraph extends Visualizer {
 			drawMaxLine(this.matrix, i, max);
 			this.maximumVolumes[i] = max - 3 * dt;
 		}
-		ctx.strokeStyle = this.colors.foreground;
+		ctx.strokeStyle = this.style.foreground;
 		ctx.stroke();
 
 		function drawBar(matrix: DOMMatrix, x: number, lines: number) {
@@ -344,8 +474,19 @@ export class VisualizerSpectogram extends Visualizer {
 	visLen = Math.floor(this.audioData.frequency.length / 2);
 	yScale = NaN;
 	sliceCanvas = document.createElement("canvas");
-	sliceCtx = this.sliceCanvas.getContext("2d")!;
+	sliceCtx = this.sliceCanvas.getContext("2d", { alpha: false })!;
 	imgdata = new ImageData(1, this.visLen);
+
+	strictAnalyzer: AnalyserNode = this.audioContext.createAnalyser();
+	buffer!: Uint8Array;
+	// Delta seconds as a circular buffer
+	dts!: Float32Array;
+	dtsi: number = 0;
+	lastTime: number = this.audioContext.currentTime;
+
+	setup() {
+		this.canvasOptions.canvas.alpha = false;
+	}
 
 	init(ctx: CanvasRenderingContext2D) {
 		super.init(ctx);
@@ -353,14 +494,27 @@ export class VisualizerSpectogram extends Visualizer {
 		this.yScale = ctx.canvas.height / this.visLen;
 		this.sliceCanvas.width = 1;
 		this.sliceCanvas.height = this.visLen;
+
+		this.strictAnalyzer.fftSize = this.audioInput.fftSize / 2;
+		this.strictAnalyzer.minDecibels = this.audioInput.minDecibels;
+		this.strictAnalyzer.maxDecibels = this.audioInput.maxDecibels;
+		this.strictAnalyzer.smoothingTimeConstant = 0;
+		this.audioInput.connect(this.strictAnalyzer);
+		this.buffer = new Uint8Array(this.strictAnalyzer.frequencyBinCount);
+
+		this.dts = new Float32Array(ctx.canvas.width).fill(-1);
+
 		// Set Opaque
 		for (var i = 0; i < this.visLen; i++) this.imgdata.data[i * 4 + 3] = 255;
+
+		ctx.imageSmoothingQuality = "low";
 	}
 
 	render(ctx: CanvasRenderingContext2D) {
 		if (magmaColormap) {
+			this.strictAnalyzer.getByteFrequencyData(this.buffer);
 			for (var idx = 0, byte, off, cOff; idx < this.visLen; idx++) {
-				byte = this.audioData.frequency[idx];
+				byte = this.buffer[idx];
 				off = idx * 4;
 				cOff = byte * 3;
 				this.imgdata.data[off] = magmaColormap![cOff];
@@ -368,8 +522,9 @@ export class VisualizerSpectogram extends Visualizer {
 				this.imgdata.data[off + 2] = magmaColormap![cOff + 2];
 			}
 			this.sliceCtx.putImageData(this.imgdata, 0, 0);
-			// Move to the left
+			// Move cache to the left by one
 			ctx.resetTransform();
+			ctx.imageSmoothingEnabled = false;
 			ctx.drawImage(
 				ctx.canvas,
 				1,
@@ -381,7 +536,7 @@ export class VisualizerSpectogram extends Visualizer {
 				ctx.canvas.width - 1,
 				ctx.canvas.height
 			);
-			// Draw new slice
+			// Draw new slice on the left
 			ctx.setTransform(
 				1,
 				0,
@@ -390,7 +545,78 @@ export class VisualizerSpectogram extends Visualizer {
 				ctx.canvas.width - 1,
 				ctx.canvas.height
 			);
+			ctx.imageSmoothingEnabled = true;
 			ctx.drawImage(this.sliceCanvas, 0, 0);
+
+			// Measure time (push dt into circular buffer)
+			const dt = this.audioContext.currentTime - this.lastTime;
+			this.lastTime = this.audioContext.currentTime;
+			this.dts[this.dtsi++] = dt;
+			this.dtsi %= this.dts.length;
+		}
+	}
+
+	initLabels(ctx: CanvasRenderingContext2D) {
+		super.initLabels(ctx);
+
+		ctx.strokeStyle = "white";
+		ctx.fillStyle = "white";
+		ctx.font = "20px " + this.style.fontText;
+		ctx.textAlign = "start";
+		ctx.textBaseline = "hanging";
+		ctx.lineWidth = 1;
+		ctx.globalAlpha = 0.1;
+	}
+
+	drawLabels(ctx: CanvasRenderingContext2D) {
+		this.clearCanvas(ctx);
+
+		const {
+			visLen,
+			audioContext: { sampleRate },
+			audioData: { frequency },
+		} = this;
+		const { width, height } = ctx.canvas;
+
+		ctx.beginPath();
+		for (var i = 0, t = 0, tt = 0, dt; i < width; i++) {
+			dt = this.dts[(this.dts.length + this.dtsi - 1 - i) % this.dts.length];
+			if (dt < 0) break;
+			if (t > 2) {
+				t -= 2;
+				labelTime(width - i, tt);
+			}
+			t += dt;
+			tt += dt;
+		}
+
+		const maxFq = indexToHertz(visLen, visLen, sampleRate);
+
+		for (var i = 2000; i < maxFq; i += 2000) {
+			labelFrequency(i);
+		}
+
+		ctx.stroke();
+
+		function labelTime(x: number, time: number, l: boolean = true) {
+			x = Math.round(x);
+			ctx.moveTo(x, 0);
+			ctx.lineTo(x, height);
+			if (l) {
+				const text = time.toFixed(2) + "s";
+				ctx.fillText(text, x + 2, 4);
+			}
+		}
+
+		function labelFrequency(hz: number, l: boolean = true) {
+			const y =
+				height - (hertzToIndex(hz, visLen, sampleRate) * height) / visLen;
+			ctx.moveTo(0, y);
+			ctx.lineTo(width, y);
+			if (l) {
+				const text = hz >= 1000 ? `${hz / 1000}k` : hz + "";
+				ctx.fillText(text, 2, y + 4);
+			}
 		}
 	}
 }

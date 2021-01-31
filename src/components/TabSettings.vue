@@ -11,7 +11,7 @@
 <script lang="ts">
 import { Options, Vue } from "vue-class-component";
 import PanelGrid from "./PanelGrid.vue";
-import { AudioSettings } from "@/settings.ts";
+import { AudioSettings, VisualSettings } from "@/settings.ts";
 
 @Options({
   components: {
@@ -19,6 +19,6 @@ import { AudioSettings } from "@/settings.ts";
   },
 })
 export default class App extends Vue {
-  public panels = [new AudioSettings()];
+  public panels = [new AudioSettings(), new VisualSettings()];
 }
 </script>
