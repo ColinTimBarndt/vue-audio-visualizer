@@ -28,7 +28,7 @@ export class VisualizerSelectPanel implements IPanel {
 		options: [
 			VisualizerFrequencyGraph,
 			VisualizerAudioGraph,
-			Visualizer80sBarGraph,
+			Visualizer80sBarChart,
 			VisualizerSpectogram,
 		],
 	};
@@ -363,8 +363,8 @@ export class VisualizerAudioGraph extends Visualizer {
 	}
 }
 
-export class Visualizer80sBarGraph extends Visualizer {
-	static readonly visualizerName: string = "80s Bar Graph";
+export class Visualizer80sBarChart extends Visualizer {
+	static readonly visualizerName: string = "80s Bar Chart";
 
 	barCount = 16;
 	verticalLines = 20;
