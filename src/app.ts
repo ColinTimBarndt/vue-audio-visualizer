@@ -2,15 +2,6 @@
 const USE_OSCILLATOR: boolean = false;
 const OSCILLATOR_HZ: number = 1000;
 
-// Compatibility
-if (!window.AudioContext)
-	window.AudioContext = (window as any).webkitAudioContext as any;
-if (!navigator.getUserMedia)
-	navigator.getUserMedia =
-		(navigator as any).mozGetUserMedia ||
-		(navigator as any).webkitGetUserMedia ||
-		(navigator as any).msGetUserMedia;
-
 // Main
 class App {
 	// HTML elements
