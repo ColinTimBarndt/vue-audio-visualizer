@@ -157,8 +157,8 @@ export class VisualizerFrequencyGraph extends Visualizer {
 		const pctx = this.contextProxy(ctx);
 
 		pctx.beginPath();
-		pctx.moveTo(-1, 0);
-		for (var idx = 0; idx < this.visLen; idx += 2) {
+		pctx.moveTo(this.audioData.frequency[0], 0);
+		for (var idx = 2; idx < this.visLen; idx += 2) {
 			pctx.lineTo(this.audioData.frequency[idx], idx);
 		}
 		pctx.stroke();
