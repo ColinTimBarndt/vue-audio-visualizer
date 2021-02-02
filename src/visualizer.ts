@@ -3,9 +3,14 @@ import PanelSelectVisualizer from "./components/PanelSelectVisualizer.vue";
 import IPanel from "@/panel-type";
 import { DeepReadonly } from "vue";
 import uid from "./uid";
-//import AudioWindowWorklet from "./window.worklet";
+// @ts-ignore WindowWorklet is a string, but ts-lint (VS Code extension) does not accept the truth
+//import WindowWorklet from "./window.worklet";
+//import WindowNode, { WindowFunctionType } from "./window-node";
 
-//console.log(AudioWindowWorklet);
+const worklets = {
+	initialized: false,
+	loading: false,
+};
 
 // https://github.com/BIDS/colormap/blob/master/colormaps.py
 let magmaColormap: null | Uint8ClampedArray = null;
@@ -481,7 +486,7 @@ export class VisualizerSpectogram extends Visualizer {
 	sliceCtx = this.sliceCanvas.getContext("2d", { alpha: false })!;
 	imgdata = new ImageData(1, this.visLen);
 
-	strictAnalyzer: AnalyserNode = this.audioContext.createAnalyser();
+	strictAnalyzer!: AnalyserNode;
 	buffer!: Uint8Array;
 	// Delta seconds as a circular buffer
 	dts!: Float32Array;
@@ -490,6 +495,49 @@ export class VisualizerSpectogram extends Visualizer {
 
 	setup() {
 		this.canvasOptions.canvas.alpha = false;
+
+		this.strictAnalyzer = this.audioContext.createAnalyser();
+		this.strictAnalyzer.fftSize = this.audioInput.fftSize / 2;
+		this.buffer = new Uint8Array(this.strictAnalyzer.frequencyBinCount);
+
+		if (!(worklets.initialized || worklets.loading)) {
+			worklets.loading = true;
+
+			/*this.audioContext.audioWorklet
+				.addModule(WindowWorklet)
+				.then(() => {
+					this.setupAudioNodes();
+					worklets.initialized = true;
+					worklets.loading = false;
+				})
+				.catch((e) => {
+					console.warn("Error when loading worklet:", e);
+					this.setupAudioNodes(true);
+					worklets.initialized = true;
+				});*/
+			this.setupAudioNodes(true);
+			worklets.initialized = true;
+		} else if (worklets.initialized) {
+			this.setupAudioNodes();
+		}
+	}
+
+	setupAudioNodes(fallback = false) {
+		this.strictAnalyzer.minDecibels = this.audioInput.minDecibels;
+		this.strictAnalyzer.maxDecibels = this.audioInput.maxDecibels;
+		this.strictAnalyzer.smoothingTimeConstant = 0;
+
+		//if (fallback) {
+		// No windowing
+		this.audioInput.connect(this.strictAnalyzer);
+		/*} else {
+			const windowNode = new WindowNode(this.audioContext);
+			this.audioInput.connect(windowNode);
+			windowNode.connect(this.strictAnalyzer);
+
+			// DEBUG
+			windowNode.windowFunction = null;
+		}*/
 	}
 
 	init(ctx: CanvasRenderingContext2D) {
@@ -498,13 +546,6 @@ export class VisualizerSpectogram extends Visualizer {
 		this.yScale = ctx.canvas.height / this.visLen;
 		this.sliceCanvas.width = 1;
 		this.sliceCanvas.height = this.visLen;
-
-		this.strictAnalyzer.fftSize = this.audioInput.fftSize / 2;
-		this.strictAnalyzer.minDecibels = this.audioInput.minDecibels;
-		this.strictAnalyzer.maxDecibels = this.audioInput.maxDecibels;
-		this.strictAnalyzer.smoothingTimeConstant = 0;
-		this.audioInput.connect(this.strictAnalyzer);
-		this.buffer = new Uint8Array(this.strictAnalyzer.frequencyBinCount);
 
 		this.dts = new Float32Array(ctx.canvas.width).fill(-1);
 
@@ -515,7 +556,7 @@ export class VisualizerSpectogram extends Visualizer {
 	}
 
 	render(ctx: CanvasRenderingContext2D) {
-		if (magmaColormap) {
+		if (magmaColormap && worklets.initialized) {
 			this.strictAnalyzer.getByteFrequencyData(this.buffer);
 			for (var idx = 0, byte, off, cOff; idx < this.visLen; idx++) {
 				byte = this.buffer[idx];

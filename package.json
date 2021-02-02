@@ -31,7 +31,9 @@
 		"eslint-plugin-vue": "^7.0.0-0",
 		"node-sass": "^5.0.0",
 		"sass-loader": "^10.1.1",
-		"typescript": "^4.1.3"
+		"ts-loader": "^8.0.14",
+		"typescript": "^4.1.3",
+		"worklet-loader": "^1.0.0"
 	},
 	"eslintConfig": {
 		"root": true,
