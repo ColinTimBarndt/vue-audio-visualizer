@@ -3,6 +3,9 @@ import PanelSelectVisualizer from "./components/PanelSelectVisualizer.vue";
 import IPanel from "@/panel-type";
 import { DeepReadonly } from "vue";
 import uid from "./uid";
+//import AudioWindowWorklet from "./window.worklet";
+
+//console.log(AudioWindowWorklet);
 
 // https://github.com/BIDS/colormap/blob/master/colormaps.py
 let magmaColormap: null | Uint8ClampedArray = null;
@@ -208,7 +211,7 @@ export class VisualizerPlaceholder extends Visualizer {
 export class VisualizerFrequencyGraph extends Visualizer {
 	static readonly visualizerName: string = "Frequency Graph";
 
-	visLen = Math.floor(this.audioData.frequency.length / 2);
+	visLen = this.audioData.frequency.length;
 
 	init(ctx: CanvasRenderingContext2D) {
 		super.init(ctx);
@@ -235,7 +238,7 @@ export class VisualizerFrequencyGraph extends Visualizer {
 
 		pctx.beginPath();
 		pctx.moveTo(this.audioData.frequency[0], 0);
-		for (var idx = 2; idx < this.visLen; idx += 2) {
+		for (var idx = 1; idx < this.visLen; idx++) {
 			pctx.lineTo(this.audioData.frequency[idx], idx);
 		}
 		pctx.stroke();
@@ -254,13 +257,14 @@ export class VisualizerFrequencyGraph extends Visualizer {
 		// Draw
 		const { visLen } = this;
 		const { sampleRate } = this.audioContext;
+		const { length } = this.audioData.frequency;
 
 		const pctx = this.contextProxy(ctx);
 		const maxFq = indexToHertz(visLen, visLen, sampleRate);
 		ctx.textAlign = "start";
 
 		pctx.beginPath();
-		for (var i = 2000; i < maxFq; i += 2000) labelFrequency(i);
+		for (var i = 2000; i < maxFq - 1000; i += 2000) labelFrequency(i);
 
 		pctx.moveTo(127, 0);
 		pctx.lineTo(127, visLen);
@@ -276,7 +280,7 @@ export class VisualizerFrequencyGraph extends Visualizer {
 		pctx.stroke();
 
 		function labelFrequency(hz: number, l: boolean = true) {
-			const x = hertzToIndex(hz, visLen, sampleRate);
+			const x = (hertzToIndex(hz, visLen, sampleRate) / visLen) * length;
 			pctx.moveTo(255, x);
 			pctx.lineTo(0, x);
 			if (l) {
@@ -592,7 +596,7 @@ export class VisualizerSpectogram extends Visualizer {
 
 		const maxFq = indexToHertz(visLen, visLen, sampleRate);
 
-		for (var i = 2000; i < maxFq; i += 2000) {
+		for (var i = 2000; i < maxFq - 1000; i += 2000) {
 			labelFrequency(i);
 		}
 
