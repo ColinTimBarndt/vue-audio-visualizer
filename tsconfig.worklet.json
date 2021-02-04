@@ -14,10 +14,11 @@
 		"baseUrl": ".",
 		"types": ["webpack-env"],
 		"paths": {
-			"@/*": ["src/*"]
+			"@/*": ["src/*", "wasm-fft/pkg/*"]
 		},
 		"lib": []
 	},
 	"include": ["src/**/*.worklet.ts"],
-	"exclude": ["node_modules"]
+	"exclude": ["node_modules"],
+	"compileOnSave": true
 }
