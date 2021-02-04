@@ -628,7 +628,7 @@ export class VisualizerSpectogram extends Visualizer {
 			dt = this.dts[(this.dts.length + this.dtsi - 1 - i) % this.dts.length];
 			if (dt < 0) break;
 			if (t > 2) {
-				t -= 2;
+				t %= 2;
 				labelTime(width - i, tt);
 			}
 			t += dt;
