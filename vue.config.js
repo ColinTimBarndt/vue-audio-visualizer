@@ -2,11 +2,7 @@ const path = require("path");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 
 module.exports = {
-	css: {
-		loaderOptions: {
-			sass: {},
-		},
-	},
+	publicPath: "",
 	configureWebpack: {
 		module: {
 			rules: [
@@ -33,9 +29,9 @@ module.exports = {
 			],
 		},
 		plugins: [
-			new WasmPackPlugin({
-				crateDirectory: path.resolve(__dirname, "wasm-fft"),
-			}),
+			//new WasmPackPlugin({
+			//	crateDirectory: path.resolve(__dirname, "wasm-fft"),
+			//}),
 		],
 	},
 };

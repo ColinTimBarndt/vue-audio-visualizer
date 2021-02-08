@@ -3,6 +3,7 @@
  * the window.
  */
 
+/*
 import WindowFunctionType from "./window-function";
 // @ts-ignore
 import * as WasmFFT from "../pkg/wasm_fft";
@@ -18,7 +19,7 @@ class WindowProcessor extends AudioWorkletProcessor {
 			(
 				event: MessageEvent<{
 					windowFunction?: WindowFunctionType | null;
-					wasm: Uint8Array;
+					wasm?: Uint8Array;
 				}>
 			) => {
 				const { data } = event;
@@ -50,3 +51,4 @@ class WindowProcessor extends AudioWorkletProcessor {
 
 registerProcessor("window", WindowProcessor);
 export default WindowProcessor;
+*/

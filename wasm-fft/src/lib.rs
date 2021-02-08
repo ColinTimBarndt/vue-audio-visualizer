@@ -104,14 +104,17 @@ impl WindowType {
         return JsValue::from_str(self.get_name());
     }
 }
-#[wasm_bindgen(js_name = "newWindowType")]
-pub fn window_type_new(variant: &str) -> Option<WindowType> {
-    WindowType::new(variant)
-}
-#[wasm_bindgen(js_name = "toStringWindowType")]
-pub fn window_type_to_string(t: WindowType) -> JsValue {
-    WindowType::js_to_string(t)
-}
+// TextEncoder is not supported in a Worklet context
+//#[wasm_bindgen(js_name = "newWindowType")]
+//pub fn window_type_new(variant: &str) -> Option<WindowType> {
+//    WindowType::new(variant)
+//}
+
+// TextDecoder is not supported in a Worklet context
+//#[wasm_bindgen(js_name = "toStringWindowType")]
+//pub fn window_type_to_string(t: WindowType) -> JsValue {
+//    WindowType::js_to_string(t)
+//}
 
 impl WindowType {
     pub const VARIANTS: [&'static str; 6] = [

@@ -3,7 +3,7 @@ import PanelSelectVisualizer from "./components/PanelSelectVisualizer.vue";
 import IPanel from "@/panel-type";
 import { DeepReadonly } from "vue";
 import uid from "./uid";
-// @ts-ignore WindowWorklet is a string, but ts-lint (VS Code extension) does not accept the truth
+// @//ts-ignore WindowWorklet is a string, but ts-lint (VS Code extension) does not accept the truth
 //import WindowWorklet from "./window.worklet";
 //import WindowNode, { WindowFunctionType } from "./window-node";
 
@@ -11,6 +11,8 @@ const worklets = {
 	initialized: false,
 	loading: false,
 };
+
+//console.log(WindowWorklet);
 
 // https://github.com/BIDS/colormap/blob/master/colormaps.py
 let magmaColormap: null | Uint8ClampedArray = null;
