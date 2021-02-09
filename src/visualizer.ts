@@ -1,5 +1,3 @@
-import PanelVisualizer from "./components/PanelVisualizer.vue";
-import PanelSelectVisualizer from "./components/PanelSelectVisualizer.vue";
 import IPanel from "@/panel-type";
 import { DeepReadonly } from "vue";
 import uid from "./uid";
@@ -30,7 +28,7 @@ function indexToHertz(idx: number, bufferLength: number, sampleRate: number) {
 
 export class VisualizerSelectPanel implements IPanel {
 	readonly title = "New Visualizer";
-	readonly component = PanelSelectVisualizer.name;
+	readonly component = "panel-select-visualizer";
 	readonly componentAttributes: {
 		options: any[];
 		callback?: (v: typeof Object) => void;
@@ -51,7 +49,7 @@ export class VisualizerSelectPanel implements IPanel {
 }
 
 export abstract class Visualizer implements IPanel {
-	readonly component = PanelVisualizer.name;
+	readonly component = "panel-visualizer";
 	readonly componentAttributes = { visualizer: this };
 	readonly componentPersistent = false;
 	readonly uid = uid();
